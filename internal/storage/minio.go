@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// Initialize MinIO client
-func initMinioClient(endpoint, accessKey, secretKey string) (*minio.Client, error) {
+// InitMinioClient Initialize MinIO client
+func InitMinioClient(endpoint, accessKey, secretKey string) (*minio.Client, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: true,

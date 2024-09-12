@@ -1,52 +1,74 @@
 package main
 
 import (
+	"aptforge/internal/application"
+	"aptforge/internal/flags"
+	"aptforge/internal/storage"
 	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"os"
 )
 
 func main() {
-	// Set up logrus logger with debug level for testing
 	logger := log.New()
+	ctx := context.Background()
+	config := flags.Parse()
+
 	logger.SetLevel(log.DebugLevel)
-	entry := log.NewEntry(logger)
-	// Parse command-line flags
-	filePath, bucket, accessKey, secretKey, endpoint := parseFlags()
 
-	// Load the file
-	fileReader := &DefaultFileReader{}
-	file, err := fileReader.Open(filePath)
+	// Fallback to environment variables for an access key and secret key
+	if config.AccessKey == "" {
+		config.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
+	}
+	if config.SecretKey == "" {
+		config.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	}
+
+	app := application.New(logger.WithField("pkg", "application"), application.Config{
+		Storage: &storage.Config{
+			Endpoint:  config.Endpoint,
+			AccessKey: config.AccessKey,
+			SecretKey: config.SecretKey,
+			Bucket:    config.Bucket,
+		},
+		Component:    config.Component,
+		Origin:       config.Origin,
+		Label:        config.Label,
+		Architecture: config.Architecture,
+		Archive:      config.Archive,
+	})
+
+	file, err := app.LoadDebFile(config.FilePath)
 	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
+		logger.Fatalf("Failed to load .deb file: %v", err)
 	}
-	defer file.Close()
+	defer app.CloseFile(file)
 
-	// Extract metadata
-	metadataExtractor := &DefaultMetadataExtractor{
-		logger: entry.WithField("service", "extractor"),
-	}
-	pkgName, pkgVersion, arch, err := metadataExtractor.Extract(file)
+	packageMetadata, err := app.ExtractDebMetadata(file)
 	if err != nil {
-		log.Fatalf("Failed to extract metadata: %v", err)
+		logger.Fatalf("Failed to extract metadata: %v", err)
 	}
 
-	// Generate the S3 key
-	s3Key := generateS3Key(pkgName, pkgVersion, arch)
-
-	// Initialize MinIO client
-	minioClient, err := initMinioClient(endpoint, accessKey, secretKey)
+	// Upload the .deb file
+	err = app.UploadDebFile(ctx, packageMetadata, file)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO client: %v", err)
+		logger.Fatalf("Failed to upload .deb file: %v", err)
 	}
 
-	// Wrap the MinIO client
-	uploader := NewUploader(logger.WithField("service", "uploader"), minioClient)
-	// Upload the file
-	err = uploader.Upload(context.Background(), bucket, s3Key, file)
+	logger.Infof("Updating repository metadata...")
+
+	// Update the Packages file
+	packagesBuffer, err := app.UpdatePackagesFile(ctx, packageMetadata)
 	if err != nil {
-		log.Fatalf("Failed to upload file: %v", err)
+		logger.Fatalf("Failed to update Packages file: %v", err)
 	}
 
-	fmt.Printf("File uploaded successfully to %s/%s\n", bucket, s3Key)
+	// Generate and upload the Release file
+	err = app.UploadReleaseFile(ctx, packagesBuffer)
+	if err != nil {
+		logger.Fatalf("Failed to upload Release file: %v", err)
+	}
+
+	fmt.Printf("File uploaded successfully to %s\n", config.Bucket)
 }
