@@ -1,8 +1,8 @@
 package main
 
 import (
+	"aptforge/cmd"
 	"aptforge/internal/application"
-	"aptforge/internal/flags"
 	"aptforge/internal/storage"
 	"context"
 	"fmt"
@@ -13,7 +13,12 @@ import (
 func main() {
 	logger := log.New()
 	ctx := context.Background()
-	config := flags.Parse()
+
+	// Execute Cobra command parsing
+	config, err := cmd.Execute()
+	if err != nil {
+		logger.Fatalf("Failed to parse command line arguments: %v", err)
+	}
 
 	logger.SetLevel(log.DebugLevel)
 
@@ -25,7 +30,7 @@ func main() {
 		config.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	}
 
-	app := application.New(logger.WithField("pkg", "application"), application.Config{
+	app := application.New(logger.WithField("pkg", "application"), &application.Config{
 		Storage: &storage.Config{
 			Endpoint:  config.Endpoint,
 			AccessKey: config.AccessKey,
