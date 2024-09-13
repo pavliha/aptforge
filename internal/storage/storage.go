@@ -8,7 +8,6 @@ import (
 	"github.com/minio/minio-go/v7"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"os"
 )
 
 type Storage interface {
@@ -68,7 +67,7 @@ func (s *storageImpl) UploadFile(ctx context.Context, s3Key string, file filerea
 	s.logger.Debugf("File size: %d bytes", fileInfo.Size())
 
 	// Reset the file pointer to the start
-	if _, err := file.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		s.logger.WithError(err).Error("Failed to reset file pointer")
 		return fmt.Errorf("failed to reset file pointer: %v", err)
 	}

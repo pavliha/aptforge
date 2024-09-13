@@ -9,13 +9,13 @@ func TestGeneratePoolPath(t *testing.T) {
 	tests := []struct {
 		name         string
 		component    string
-		metadata     *PackagesContent
+		metadata     *PackageMetadata
 		expectedPath string
 	}{
 		{
 			name:      "Standard package",
 			component: "main",
-			metadata: &PackagesContent{
+			metadata: &PackageMetadata{
 				PackageName:  "myapp",
 				Version:      "1.0.0",
 				Architecture: "amd64",
@@ -25,7 +25,7 @@ func TestGeneratePoolPath(t *testing.T) {
 		{
 			name:      "Package name starts with uppercase",
 			component: "contrib",
-			metadata: &PackagesContent{
+			metadata: &PackageMetadata{
 				PackageName:  "Uppercase",
 				Version:      "2.1.3",
 				Architecture: "arm64",
@@ -35,7 +35,7 @@ func TestGeneratePoolPath(t *testing.T) {
 		{
 			name:      "Package with hyphen",
 			component: "non-free",
-			metadata: &PackagesContent{
+			metadata: &PackageMetadata{
 				PackageName:  "hyphen-package",
 				Version:      "0.9-beta",
 				Architecture: "i386",
