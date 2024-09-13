@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"aptforge/internal/file_reader"
+	"aptforge/internal/filereader"
 	"bytes"
 	"context"
 	"fmt"
@@ -11,7 +11,13 @@ import (
 	"os"
 )
 
-type Storage struct {
+type Storage interface {
+	UploadFile(ctx context.Context, s3Key string, file filereader.File) error
+	UploadBuffer(ctx context.Context, s3Key string, buffer *bytes.Buffer) error
+	Download(ctx context.Context, s3Key string) (Object, error)
+}
+
+type storageImpl struct {
 	client MinioClient
 	logger *log.Entry
 	bucket string
@@ -26,8 +32,8 @@ type Object interface {
 	Read(p []byte) (n int, err error)
 }
 
-func New(logger *log.Entry, minioClient MinioClient, bucket string) *Storage {
-	return &Storage{
+func New(logger *log.Entry, minioClient MinioClient, bucket string) Storage {
+	return &storageImpl{
 		client: minioClient,
 		logger: logger,
 		bucket: bucket,
@@ -41,7 +47,7 @@ type Config struct {
 	Bucket    string
 }
 
-func Initialize(logger *log.Entry, config *Config) *Storage {
+func Initialize(logger *log.Entry, config *Config) Storage {
 	minioClient, err := InitMinioClient(config.Endpoint, config.AccessKey, config.SecretKey)
 	if err != nil {
 		logger.Fatalf("Failed to initialize MinIO client: %v", err)
@@ -51,7 +57,7 @@ func Initialize(logger *log.Entry, config *Config) *Storage {
 }
 
 // UploadFile uploads a file to an S3-compatible bucket.
-func (s *Storage) UploadFile(ctx context.Context, s3Key string, file file_reader.File) error {
+func (s *storageImpl) UploadFile(ctx context.Context, s3Key string, file filereader.File) error {
 	// Get file information
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -84,7 +90,7 @@ func (s *Storage) UploadFile(ctx context.Context, s3Key string, file file_reader
 }
 
 // UploadBuffer Uploader method to upload a buffer (for metadata files like Packages or Release)
-func (s *Storage) UploadBuffer(ctx context.Context, s3Key string, buffer *bytes.Buffer) error {
+func (s *storageImpl) UploadBuffer(ctx context.Context, s3Key string, buffer *bytes.Buffer) error {
 	size := int64(buffer.Len())
 
 	s.logger.Debugf("Uploading buffer to S3 at path: %s/%s", s.bucket, s3Key)
@@ -103,7 +109,7 @@ func (s *Storage) UploadBuffer(ctx context.Context, s3Key string, buffer *bytes.
 }
 
 // Download downloads a file from an S3-compatible bucket and saves it to the provided file path.
-func (s *Storage) Download(ctx context.Context, s3Key string) (Object, error) {
+func (s *storageImpl) Download(ctx context.Context, s3Key string) (Object, error) {
 	s.logger.Debugf("Downloading file from S3 at path: %s/%s", s.bucket, s3Key)
 
 	// Get the object from S3

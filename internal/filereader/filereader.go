@@ -1,4 +1,4 @@
-package file_reader
+package filereader
 
 import (
 	log "github.com/sirupsen/logrus"
@@ -16,17 +16,17 @@ type Reader interface {
 	Open(name string) (File, error)
 }
 
-type DefaultFileReader struct {
+type fileReaderImpl struct {
 	logger *log.Entry
 }
 
 func New(logger *log.Entry) Reader {
-	return &DefaultFileReader{
+	return &fileReaderImpl{
 		logger: logger,
 	}
 }
 
 // Open opens a file for reading.
-func (d *DefaultFileReader) Open(name string) (File, error) {
+func (d *fileReaderImpl) Open(name string) (File, error) {
 	return os.Open(name)
 }

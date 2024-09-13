@@ -2,7 +2,7 @@ package application
 
 import (
 	"aptforge/internal/deb"
-	"aptforge/internal/file_reader"
+	"aptforge/internal/filereader"
 	"aptforge/internal/storage"
 	"bytes"
 	"context"
@@ -24,18 +24,20 @@ type Config struct {
 }
 
 type Application interface {
-	LoadDebFile(filePath string) (file_reader.File, error)
-	CloseFile(file file_reader.File)
-	ExtractDebMetadata(file file_reader.File) (*deb.PackageMetadata, error)
-	UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file file_reader.File) error
+	LoadDebFile(filePath string) (filereader.File, error)
+	CloseFile(file filereader.File)
+	ExtractDebMetadata(file filereader.File) (*deb.PackageMetadata, error)
+	UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file filereader.File) error
 	DownloadPackagesFromStorage(ctx context.Context) (*bytes.Buffer, error)
 	UpdatePackagesFile(ctx context.Context, metadata *deb.PackageMetadata) (*bytes.Buffer, error)
 	UploadReleaseFile(ctx context.Context, packagesBuffer *bytes.Buffer) error
 }
 
 type applicationImpl struct {
-	storage          *storage.Storage
 	logger           *log.Entry
+	storage          storage.Storage
+	fileReader       filereader.Reader
+	extractor        deb.Extractor
 	config           *Config
 	repoPath         string
 	packagesFilePath string
@@ -48,30 +50,31 @@ func New(logger *log.Entry, config *Config) Application {
 		logger:           logger,
 		config:           config,
 		storage:          storage.Initialize(logger, config.Storage),
+		fileReader:       filereader.New(logger.WithField("pkg", "file")),
+		extractor:        deb.New(logger.WithField("pkg", "deb")),
 		repoPath:         repoPath,
 		packagesFilePath: filepath.Join(repoPath, "Packages"),
 		releaseFilePath:  filepath.Join(repoPath, "Release"),
 	}
 }
 
-func (a *applicationImpl) LoadDebFile(filePath string) (file_reader.File, error) {
-	fileReader := file_reader.New(a.logger.WithField("pkg", "file"))
-	file, err := fileReader.Open(filePath)
+func (a *applicationImpl) LoadDebFile(filePath string) (filereader.File, error) {
+	file, err := a.fileReader.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	return file, nil
 }
 
-func (a *applicationImpl) CloseFile(file file_reader.File) {
+func (a *applicationImpl) CloseFile(file filereader.File) {
 	err := file.Close()
 	if err != nil {
 		a.logger.Errorf("Failed to close file: %v", err)
 	}
 }
 
-func (a *applicationImpl) ExtractDebMetadata(file file_reader.File) (*deb.PackageMetadata, error) {
-	metadata, err := deb.New(a.logger.WithField("pkg", "deb")).ExtractPackageMetadata(file)
+func (a *applicationImpl) ExtractDebMetadata(file filereader.File) (*deb.PackageMetadata, error) {
+	metadata, err := a.extractor.ExtractPackageMetadata(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract metadata: %w", err)
 	}
@@ -79,7 +82,7 @@ func (a *applicationImpl) ExtractDebMetadata(file file_reader.File) (*deb.Packag
 	return metadata, nil
 }
 
-func (a *applicationImpl) UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file file_reader.File) error {
+func (a *applicationImpl) UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file filereader.File) error {
 	debPath := deb.GeneratePoolPath(a.config.Component, metadata)
 	err := a.storage.UploadFile(ctx, debPath, file)
 	if err != nil {

@@ -1,7 +1,7 @@
 package deb
 
 import (
-	"aptforge/internal/file_reader"
+	"aptforge/internal/filereader"
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
@@ -10,6 +10,10 @@ import (
 	"io"
 	"strings"
 )
+
+type Extractor interface {
+	ExtractPackageMetadata(file filereader.File) (*PackageMetadata, error)
+}
 
 type PackageMetadata struct {
 	PackageName   string
@@ -33,14 +37,14 @@ type DefaultMetadataExtractor struct {
 }
 
 // New returns a new instance of DefaultMetadataExtractor.
-func New(logger *log.Entry) *DefaultMetadataExtractor {
+func New(logger *log.Entry) Extractor {
 	return &DefaultMetadataExtractor{
 		logger: logger,
 	}
 }
 
 // ExtractPackageMetadata reads metadata from a .deb file and returns it in a DebMetadata struct.
-func (d *DefaultMetadataExtractor) ExtractPackageMetadata(file file_reader.File) (*PackageMetadata, error) {
+func (d *DefaultMetadataExtractor) ExtractPackageMetadata(file filereader.File) (*PackageMetadata, error) {
 	arReader := ar.NewReader(file)
 	d.logger.Debug("Starting extraction from .deb file.")
 
