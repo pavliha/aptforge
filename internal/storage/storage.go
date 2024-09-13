@@ -44,10 +44,11 @@ type Config struct {
 	AccessKey string
 	SecretKey string
 	Bucket    string
+	Secure    bool
 }
 
 func Initialize(logger *log.Entry, config *Config) Storage {
-	minioClient, err := InitMinioClient(config.Endpoint, config.AccessKey, config.SecretKey)
+	minioClient, err := InitMinioClient(config.Endpoint, config.AccessKey, config.SecretKey, config.Secure)
 	if err != nil {
 		logger.Fatalf("Failed to initialize MinIO client: %v", err)
 	}

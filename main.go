@@ -36,6 +36,7 @@ func main() {
 			AccessKey: config.AccessKey,
 			SecretKey: config.SecretKey,
 			Bucket:    config.Bucket,
+			Secure:    config.Secure,
 		},
 		Component:    config.Component,
 		Origin:       config.Origin,

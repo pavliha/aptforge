@@ -10,7 +10,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"os"
 	"path/filepath"
 )
 
@@ -28,7 +27,6 @@ type Application interface {
 	CloseFile(file filereader.File)
 	ExtractDebMetadata(file filereader.File) (*deb.PackageMetadata, error)
 	UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file filereader.File) error
-	DownloadPackagesFromStorage(ctx context.Context) (*bytes.Buffer, error)
 	UpdatePackagesFile(ctx context.Context, metadata *deb.PackageMetadata) (*bytes.Buffer, error)
 	UploadReleaseFile(ctx context.Context, packagesBuffer *bytes.Buffer) error
 }
@@ -91,40 +89,18 @@ func (a *applicationImpl) UploadDebFile(ctx context.Context, metadata *deb.Packa
 	return nil
 }
 
-func (a *applicationImpl) DownloadPackagesFromStorage(ctx context.Context) (*bytes.Buffer, error) {
-	packagesFilePath := filepath.Join(a.repoPath, "Packages")
-
-	var packagesBuffer bytes.Buffer
-	packagesFile, err := a.storage.Download(ctx, packagesFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			a.logger.Println("No Packages file found, creating a new one.")
-			return &packagesBuffer, nil
-		}
-		return nil, fmt.Errorf("failed to download Packages file: %w", err)
-	}
-	_, err = io.Copy(&packagesBuffer, packagesFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read Packages file: %w", err)
-	}
-	return &packagesBuffer, nil
-}
-
 func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, metadata *deb.PackageMetadata) (*bytes.Buffer, error) {
 	packagesFilePath := filepath.Join(a.repoPath, "Packages")
-	packagesFile, err := a.DownloadPackagesFromStorage(ctx)
-	if err != nil {
-		return nil, err
-	}
-	_, err = packagesFile.WriteString(deb.CreatePackagesFileContents(mapMetadataToPackageContents(metadata)))
+	var packagesFile bytes.Buffer
+	_, err := packagesFile.WriteString(deb.CreatePackagesFileContents(mapMetadataToPackageContents(metadata)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to append to Packages file: %w", err)
 	}
-	err = a.storage.UploadBuffer(ctx, packagesFilePath, packagesFile)
+	err = a.storage.UploadBuffer(ctx, packagesFilePath, &packagesFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload Packages file: %w", err)
 	}
-	return packagesFile, nil
+	return &packagesFile, nil
 }
 
 func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer *bytes.Buffer) error {

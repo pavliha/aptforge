@@ -8,6 +8,25 @@ import (
 
 const Description string = "AptForge is an open-source command-line tool for managing custom APT repositories, designed to streamline the upload of .deb packages and automate the generation of \nrepository metadata files such as Packages and Release."
 
+// Valid values for Architecture, Archive, and Component
+var validArchitectures = map[string]struct{}{
+	"amd64": {},
+	"arm64": {},
+	"i386":  {},
+}
+
+var validArchives = map[string]struct{}{
+	"stable":   {},
+	"testing":  {},
+	"unstable": {},
+}
+
+var validComponents = map[string]struct{}{
+	"main":     {},
+	"contrib":  {},
+	"non-free": {},
+}
+
 // Config holds the values parsed from command-line flags and environment variables.
 type Config struct {
 	FilePath     string
@@ -20,6 +39,7 @@ type Config struct {
 	Label        string
 	Architecture string
 	Archive      string
+	Secure       bool
 }
 
 var config Config
@@ -33,6 +53,21 @@ var rootCmd = &cobra.Command{
 		// Validate required inputs
 		if config.FilePath == "" || config.Bucket == "" || config.AccessKey == "" || config.SecretKey == "" || config.Endpoint == "" {
 			log.Fatal("Missing required arguments: file, bucket, access-key, secret-key, endpoint")
+		}
+
+		// Validate Architecture
+		if _, valid := validArchitectures[config.Architecture]; !valid {
+			log.Fatal("Invalid architecture. Allowed values are: amd64, arm64, i386")
+		}
+
+		// Validate Archive
+		if _, valid := validArchives[config.Archive]; !valid {
+			log.Fatal("Invalid archive. Allowed values are: stable, testing, unstable")
+		}
+
+		// Validate Component
+		if _, valid := validComponents[config.Component]; !valid {
+			log.Fatal("Invalid component. Allowed values are: main, contrib, non-free")
 		}
 
 		// Your main application logic goes here
@@ -53,6 +88,21 @@ func Execute() (*Config, error) {
 		return nil, fmt.Errorf("missing required arguments: file, bucket, endpoint")
 	}
 
+	// Validate Architecture
+	if _, valid := validArchitectures[config.Architecture]; !valid {
+		return nil, fmt.Errorf("invalid architecture. Allowed values are: amd64, arm64, i386")
+	}
+
+	// Validate Archive
+	if _, valid := validArchives[config.Archive]; !valid {
+		return nil, fmt.Errorf("invalid archive. Allowed values are: stable, testing, unstable")
+	}
+
+	// Validate Component
+	if _, valid := validComponents[config.Component]; !valid {
+		return nil, fmt.Errorf("invalid component. Allowed values are: main, contrib, non-free")
+	}
+
 	return &config, nil
 }
 
@@ -66,10 +116,11 @@ func init() {
 
 	// Release file metadata flags
 	rootCmd.Flags().StringVar(&config.Component, "component", "main", "Component of the APT repository (e.g., main, contrib, non-free)")
-	rootCmd.Flags().StringVar(&config.Origin, "origin", "Custom Repository", "Origin of the APT repository")
-	rootCmd.Flags().StringVar(&config.Label, "label", "Custom Repo", "Label for the APT repository")
-	rootCmd.Flags().StringVar(&config.Architecture, "arch", "amd64", "Target architecture for the repository (e.g., amd64, arm64)")
+	rootCmd.Flags().StringVar(&config.Origin, "origin", "Apt Repository", "Origin of the APT repository")
+	rootCmd.Flags().StringVar(&config.Label, "label", "Apt Repo", "Label for the APT repository")
+	rootCmd.Flags().StringVar(&config.Architecture, "arch", "amd64", "Target architecture for the repository (e.g., amd64, arm64, i386)")
 	rootCmd.Flags().StringVar(&config.Archive, "archive", "stable", "Archive type of the APT repository (e.g., stable, testing, unstable)")
+	rootCmd.Flags().BoolVar(&config.Secure, "secure", true, "Enable secure connections")
 
 	// Mark required flags
 	_ = rootCmd.MarkFlagRequired("file")
