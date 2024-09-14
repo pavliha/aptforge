@@ -112,9 +112,10 @@ This project is licensed under the MIT License. See the LICENSE file for details
 If you encounter any issues or bugs, feel free to open a GitHub issue here. Please provide a detailed description of the problem along with steps to reproduce it.
 
 ## Roadmap
-Add support for GPG signing of Release files.
-Implement automatic retries for S3 upload failures.
-Extend support for other architectures (e.g., arm64).
+- Add support for GPG signing of Release files.
+- Implement automatic retries for S3 upload failures.
+- Extend support for other architectures (e.g., arm64).
+
 Stay tuned for updates!
 
 ## Maintainers
