@@ -1,6 +1,7 @@
 package deb
 
 import (
+	"aptforge/internal/filereader"
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
@@ -9,9 +10,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
-// MockFile is a simple implementation of the File interface to simulate the .deb file
 type MockFile struct {
 	Reader *bytes.Reader
 }
@@ -29,70 +30,107 @@ func (m *MockFile) Close() error {
 }
 
 func (m *MockFile) Stat() (os.FileInfo, error) {
-	return nil, nil
+	// Return a dummy FileInfo
+	return mockFileInfo{}, nil
 }
 
-// Helper function to create a mock .deb file with control.tar.gz content
-func createMockDebFile(t *testing.T, controlContent string) *MockFile {
-	// Step 1: Create a control file inside a tar archive
-	var tarBuffer bytes.Buffer
-	tw := tar.NewWriter(&tarBuffer)
-	data := []byte(controlContent)
-	header := &tar.Header{
-		Name: "./control",
-		Size: int64(len(data)),
-	}
-	if err := tw.WriteHeader(header); err != nil {
-		t.Fatalf("Failed to write tar header: %v", err)
-	}
-	if _, err := tw.Write(data); err != nil {
-		t.Fatalf("Failed to write tar content: %v", err)
-	}
-	if err := tw.Close(); err != nil {
-		t.Fatalf("Failed to close tar writer: %v", err)
+type mockFileInfo struct{}
+
+func (m mockFileInfo) Name() string       { return "mock.deb" }
+func (m mockFileInfo) Size() int64        { return 0 }
+func (m mockFileInfo) Mode() os.FileMode  { return 0644 }
+func (m mockFileInfo) ModTime() time.Time { return time.Now() }
+func (m mockFileInfo) IsDir() bool        { return false }
+func (m mockFileInfo) Sys() interface{}   { return nil }
+
+func createMockDebFile(t *testing.T, controlContent string) filereader.File {
+	// Create a buffer to hold the .deb file content
+	debBuffer := new(bytes.Buffer)
+
+	// Write the global ar archive header
+	_, err := debBuffer.Write([]byte("!<arch>\n"))
+	if err != nil {
+		t.Fatalf("failed to write ar archive header: %v", err)
 	}
 
-	// Step 2: Compress the tar file as gzip
-	var gzipBuffer bytes.Buffer
-	gw := gzip.NewWriter(&gzipBuffer)
-	if _, err := gw.Write(tarBuffer.Bytes()); err != nil {
-		t.Fatalf("Failed to write gzip content: %v", err)
-	}
-	if err := gw.Close(); err != nil {
-		t.Fatalf("Failed to close gzip writer: %v", err)
-	}
+	// Helper function to write an ar header and content with proper padding
+	writeArEntry := func(name string, content []byte) {
+		// Ensure name is exactly 16 bytes, padded with spaces
+		nameField := fmt.Sprintf("%-16s", name)
+		modTimeField := fmt.Sprintf("%-12d", time.Now().Unix())
+		uidField := fmt.Sprintf("%-6d", 0)
+		gidField := fmt.Sprintf("%-6d", 0)
+		modeField := fmt.Sprintf("%-8o", 0644)
+		sizeField := fmt.Sprintf("%-10d", len(content))
+		headerTerminator := "`\n"
 
-	// Step 3: Create a mock AR archive (using control.tar.gz)
-	var arBuffer bytes.Buffer
-	arBuffer.WriteString("!<arch>\n") // AR header
+		header := nameField + modTimeField + uidField + gidField + modeField + sizeField + headerTerminator
+		if len(header) != 60 {
+			t.Fatalf("ar header is not 60 bytes long, got %d bytes", len(header))
+		}
 
-	// Correctly format the AR header to be exactly 60 bytes
-	arHeader := fmt.Sprintf("%-16s%-12s%-6s%-6s%-10d%-2s",
-		"control.tar.gz",        // File name (padded to 16 characters)
-		"0",                     // File timestamp (padded to 12 characters)
-		"0",                     // Owner ID (padded to 6 characters)
-		"0",                     // Group ID (padded to 6 characters)
-		len(gzipBuffer.Bytes()), // File size (padded to 10 characters)
-		"`\n")                   // End mark (2 characters)
+		_, err := debBuffer.Write([]byte(header))
+		if err != nil {
+			t.Fatalf("failed to write ar header: %v", err)
+		}
 
-	t.Logf("AR Header: '%s'", arHeader)
-	t.Logf("AR Header Length: %d", len(arHeader))
+		_, err = debBuffer.Write(content)
+		if err != nil {
+			t.Fatalf("failed to write ar content: %v", err)
+		}
 
-	if len(arHeader) != 60 {
-		t.Fatalf("AR header is not the correct length: %d bytes", len(arHeader))
-	}
-
-	if _, err := arBuffer.Write([]byte(arHeader)); err != nil {
-		t.Fatalf("Failed to write AR header: %v", err)
-	}
-
-	if _, err := arBuffer.Write(gzipBuffer.Bytes()); err != nil {
-		t.Fatalf("Failed to write AR content: %v", err)
+		// If the file size is odd, add a newline for padding
+		if len(content)%2 != 0 {
+			err = debBuffer.WriteByte('\n')
+			if err != nil {
+				t.Fatalf("failed to write padding byte: %v", err)
+			}
+		}
 	}
 
-	// Step 4: Return a MockFile
+	// Write the debian-binary file
+	debianBinaryContent := []byte("2.0\n")
+	writeArEntry("debian-binary", debianBinaryContent)
+
+	// Create control.tar.gz content
+	controlTarGzBuffer := new(bytes.Buffer)
+	gzipWriter := gzip.NewWriter(controlTarGzBuffer)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	// Write the control file into the tar archive
+	controlBytes := []byte(controlContent)
+	controlHeader := &tar.Header{
+		Name:     "./control",
+		Mode:     0644,
+		Size:     int64(len(controlBytes)),
+		Typeflag: tar.TypeReg,
+	}
+	err = tarWriter.WriteHeader(controlHeader)
+	if err != nil {
+		t.Fatalf("failed to write control tar header: %v", err)
+	}
+	_, err = tarWriter.Write(controlBytes)
+	if err != nil {
+		t.Fatalf("failed to write control tar content: %v", err)
+	}
+
+	// Close tar and gzip writers
+	err = tarWriter.Close()
+	if err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+	err = gzipWriter.Close()
+	if err != nil {
+		t.Fatalf("failed to close gzip writer: %v", err)
+	}
+
+	// Write control.tar.gz to the ar archive
+	controlTarGzBytes := controlTarGzBuffer.Bytes()
+	writeArEntry("control.tar.gz", controlTarGzBytes)
+
+	// Return a MockFile that wraps the debBuffer
 	return &MockFile{
-		Reader: bytes.NewReader(arBuffer.Bytes()),
+		Reader: bytes.NewReader(debBuffer.Bytes()),
 	}
 }
 
@@ -118,10 +156,10 @@ Suggests: sug1
 Conflicts: conf1
 Provides: prov1`
 
-	mockFile := createMockDebFile(t, controlContent)
+	file := createMockDebFile(t, controlContent)
 	extractor := createTestExtractor()
 
-	metadata, err := extractor.ExtractPackageMetadata(mockFile)
+	metadata, err := extractor.ExtractPackageMetadata(file)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -148,30 +186,38 @@ func TestExtractMetadataIncomplete(t *testing.T) {
 	controlContent := `Package: testpkg
 Version: 1.0`
 
-	mockFile := createMockDebFile(t, controlContent)
+	file := createMockDebFile(t, controlContent)
 	extractor := createTestExtractor()
 
-	_, err := extractor.ExtractPackageMetadata(mockFile)
+	_, err := extractor.ExtractPackageMetadata(file)
 	if err == nil {
 		t.Fatal("expected error due to incomplete metadata, but got no error")
 	}
 
 	expectedError := "incomplete control metadata"
 	if !strings.Contains(err.Error(), expectedError) {
-		t.Errorf("expected error message '%s', got '%v'", expectedError, err)
+		t.Errorf("expected error message containing '%s', got '%v'", expectedError, err)
+	}
+}
+
+func createCorruptDebFile(t *testing.T) filereader.File {
+	t.Logf("Create a buffer with invalid content")
+	corruptContent := []byte("this is not a valid .deb file")
+	return &MockFile{
+		Reader: bytes.NewReader(corruptContent),
 	}
 }
 
 func TestExtractMetadataCorruptFile(t *testing.T) {
-	mockFile := createMockDebFile(t, "invalid_tar_content")
+	file := createCorruptDebFile(t)
 	extractor := createTestExtractor()
 
-	_, err := extractor.ExtractPackageMetadata(mockFile)
+	_, err := extractor.ExtractPackageMetadata(file)
 	if err == nil {
-		t.Fatal("expected error due to corrupted tar file, but got no error")
+		t.Fatal("expected error due to corrupted deb file, but got no error")
 	}
 
-	expectedError := "failed to read tar archive"
+	expectedError := "failed to read ar archive"
 	if !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("expected error message '%s', got '%v'", expectedError, err)
 	}

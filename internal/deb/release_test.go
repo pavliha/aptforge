@@ -19,17 +19,16 @@ func TestCreateReleaseFileContents(t *testing.T) {
 					Filename: "package1.deb",
 				},
 			},
-			PackagesPath: "dists/stable/main/binary-amd64/Packages",
 		}
 
-		expected := `Archive: stable
-Component: main
-Origin: Debian
+		expected := `Origin: Debian
 Label: Debian
-Architecture: amd64
+Suite: main
+Codename: main
+Architectures: amd64
+Components: main
 SHA256:
  123abc 1024 package1.deb
- dists/stable/main/binary-amd64/Packages
 `
 
 		result := CreateReleaseFileContents(content)
@@ -46,16 +45,15 @@ SHA256:
 			Label:        "Ubuntu",
 			Architecture: "arm64",
 			SHA256:       []ChecksumInfo{},
-			PackagesPath: "dists/stable/main/binary-arm64/Packages",
 		}
 
-		expected := `Archive: stable
-Component: main
-Origin: Ubuntu
+		expected := `Origin: Ubuntu
 Label: Ubuntu
-Architecture: arm64
+Suite: main
+Codename: main
+Architectures: arm64
+Components: main
 SHA256:
- dists/stable/main/binary-arm64/Packages
 `
 
 		result := CreateReleaseFileContents(content)
@@ -83,18 +81,17 @@ SHA256:
 					Filename: "package3.deb",
 				},
 			},
-			PackagesPath: "dists/stable/contrib/binary-i386/Packages",
 		}
 
-		expected := `Archive: stable
-Component: contrib
-Origin: Canonical
+		expected := `Origin: Canonical
 Label: Canonical
-Architecture: i386
+Suite: contrib
+Codename: contrib
+Architectures: i386
+Components: contrib
 SHA256:
  abc123 2048 package2.deb
  def456 4096 package3.deb
- dists/stable/contrib/binary-i386/Packages
 `
 
 		result := CreateReleaseFileContents(content)

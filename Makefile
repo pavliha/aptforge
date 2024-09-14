@@ -14,3 +14,7 @@ run:
 		--label="Apt Repo" \
 		--arch=arm64 \
 		--archive=stable
+
+test:
+	@echo "Testing..."
+	grc go test ./... -v
