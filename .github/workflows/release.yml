@@ -1,0 +1,83 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-release:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        go-version: [ '1.23' ]
+        os: [ 'ubuntu-latest', 'windows-latest', 'macos-latest' ]
+        arch: [ 'amd64' ]
+    env:
+      GO111MODULE: 'on'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            echo "GOOS=windows" >> $GITHUB_ENV
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            echo "GOOS=darwin" >> $GITHUB_ENV
+          else
+            echo "GOOS=linux" >> $GITHUB_ENV
+          fi
+          echo "GOARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+
+      - name: Build binary
+        run: |
+          mkdir -p build
+          GOOS=$GOOS GOARCH=$GOARCH go build -o build/aptforge-$GOOS-$GOARCH ./cmd
+
+      - name: Create archive
+        run: |
+          cd build
+          if [ "$GOOS" == "windows" ]; then
+            zip aptforge-$GOOS-$GOARCH.zip aptforge-$GOOS-$GOARCH.exe
+          else
+            tar -czf aptforge-$GOOS-$GOARCH.tar.gz aptforge-$GOOS-$GOARCH
+          fi
+          cd ..
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/*.zip
+          asset_name: aptforge-$GOOS-$GOARCH.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets (Non-Windows)
+        if: ${{ matrix.os != 'windows-latest' }}
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/*.tar.gz
+          asset_name: aptforge-$GOOS-$GOARCH.tar.gz
+          asset_content_type: application/gzip
