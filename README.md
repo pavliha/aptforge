@@ -1,13 +1,14 @@
 # AptForge
 
-**AptForge** is an open-source command-line tool for managing custom APT repositories, designed to streamline the upload of `.deb` packages and automate the generation of repository metadata files such as `Packages` and `Release`.
+**AptForge** is an open-source command-line tool for managing custom APT repositories. It streamlines the upload of .deb packages to S3-compatible storage and automates the generation of repository metadata files such as Packages, Packages.gz, and Release.
 
 ## Features
 
-- **Upload `.deb` Files**: Upload Debian packages to S3-compatible storage (e.g., AWS S3, DigitalOcean Spaces).
-- **Metadata Management**: Automatically update `Packages` and `Release` files with correct checksums.
-- **Environment Variable Support**: Use environment variables for access credentials.
+- **Upload `.deb` Files**: Seamlessly upload Debian packages to S3-compatible storage (e.g., AWS S3, DigitalOcean Spaces, MinIO).
+- **Metadata Management**: Automatically update Packages, Packages.gz, and Release files with correct checksums.
+- **Environment Variable Support**: Use environment variables for access credentials if flags are not provided.
 - **Customizable Repository Configurations**: Set custom repository component, origin, label, architecture, and archive type.
+- **Secure Connections**: Enable or disable secure connections based on your storage endpoint requirements.
 
 ## Installation
 
@@ -16,10 +17,10 @@ Clone the repository and build the binary using Go:
 ```bash
 git clone https://github.com/pavliha/aptforge.git
 cd aptforge
-go build -o aptforge ./cmd
+go build -o aptforge .
 ```
 
-Alternatively, you can download a pre-built binary from the releases page.
+Alternatively, you can download a pre-built binary from the releases' page.
 
 ## Usage
 The basic usage involves uploading a .deb package to an S3-compatible storage and updating the repository metadata.
@@ -29,6 +30,26 @@ aptforge --file /path/to/package.deb --bucket my-bucket \
 --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY \
 --endpoint fra1.digitaloceanspaces.com
 ```
+
+
+### Example
+```bash
+aptforge --file ./my-package.deb --bucket my-repo-bucket \
+--access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY \
+--endpoint fra1.digitaloceanspaces.com --component main \
+--origin "My Custom Repo" --label "My Repo Label" --arch amd64
+```
+
+### Example with All Options
+
+```bash
+aptforge --file ./my-package.deb --bucket my-repo-bucket \
+--access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY \
+--endpoint your-s3-endpoint.com --component main \
+--origin "My Custom Repo" --label "My Repo Label" \
+--arch amd64 --archive stable --secure=true
+```
+
 ## Flags
 | Flag           | Description                                                            | Required | Default          |
 |----------------|------------------------------------------------------------------------|----------|------------------|
@@ -42,14 +63,15 @@ aptforge --file /path/to/package.deb --bucket my-bucket \
 | `--label`      | Label for the repository                                               | No       | `Apt Repo`       |
 | `--arch`       | Target architecture for the repository (e.g., `amd64`, `arm64`)        | No       | `amd64`          |
 | `--archive`    | Archive type of the repository (e.g., `stable`, `testing`, `unstable`) | No       | `stable`         |
+| `--secure`     | Enable secure connections (true or false)                              | No       | `true`           |
 
-### Example
-```bash
-aptforge --file ./my-package.deb --bucket my-repo-bucket \
---access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY \
---endpoint fra1.digitaloceanspaces.com --component main \
---origin "My Custom Repo" --label "My Repo Label" --arch amd64
-```
+**Note:** If --access-key or --secret-key are not provided via flags, AptForge will look for the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+
+### Valid Values
+- **Architecture** (--arch): amd64, arm64, i386
+- **Archives** (--archive): stable, testing, unstable
+- **Components** (--component): main, contrib, non-free
+
 ## Environment Variables
 AptForge can use environment variables for credentials. If --access-key or --secret-key are not provided via flags, the tool will look for:
 
@@ -57,7 +79,7 @@ AptForge can use environment variables for credentials. If --access-key or --sec
 `AWS_SECRET_ACCESS_KEY`
 
 ## Error Handling
-AptForge will log detailed error messages using logrus if it encounters any issues during the execution, such as failure to upload files, missing credentials, or invalid paths.
+AptForge uses Logrus for structured logging. Detailed error messages will be logged if the tool encounters any issues during execution, such as failure to upload files, missing credentials, or invalid paths.
 
 ## Contributing
 All contributions are welcome! Follow these steps to contribute to AptForge:
