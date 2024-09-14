@@ -177,7 +177,6 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 	packagesSize := int64(packagesBuffer.Len())
 
 	a.logger.Debugf("Packages buffer length before checksum: %d", packagesBuffer.Len())
-	a.logger.Debugf("Packages.gz buffer length before checksum: %d", packagesGzBuffer.Len())
 
 	checksums = append(checksums, deb.ChecksumInfo{
 		Checksum: packagesSha256Sum,
@@ -194,6 +193,8 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 	packagesGzSha256Sum := fmt.Sprintf("%x", packagesGzHash.Sum(nil))
 	packagesGzSize := int64(packagesGzBuffer.Len())
 
+	a.logger.Debugf("Packages.gz buffer length before checksum: %d", packagesGzBuffer.Len())
+
 	checksums = append(checksums, deb.ChecksumInfo{
 		Checksum: packagesGzSha256Sum,
 		Size:     packagesGzSize,
@@ -202,9 +203,10 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 
 	// Construct the Release file content
 	releaseContent := deb.CreateReleaseFileContents(deb.ReleaseFileContent{
-		Component:    a.config.Component,
 		Origin:       a.config.Origin,
 		Label:        a.config.Label,
+		Archive:      a.config.Archive,
+		Component:    a.config.Component,
 		Architecture: a.config.Architecture,
 		SHA256:       checksums,
 	})
