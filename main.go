@@ -5,7 +5,6 @@ import (
 	"aptforge/internal/application"
 	"aptforge/internal/storage"
 	"context"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -64,17 +63,17 @@ func main() {
 
 	logger.Infof("Updating repository metadata...")
 
-	// Update the Packages file
-	packagesBuffer, err := app.UpdatePackagesFile(ctx, packageMetadata)
+	// Update the Packages file and get both Packages and Packages.gz buffers
+	packagesBuffer, packagesGzBuffer, err := app.UpdatePackagesFile(ctx, packageMetadata)
 	if err != nil {
 		logger.Fatalf("Failed to update Packages file: %v", err)
 	}
 
 	// Generate and upload the Release file
-	err = app.UploadReleaseFile(ctx, packagesBuffer)
+	err = app.UploadReleaseFile(ctx, packagesBuffer, packagesGzBuffer)
 	if err != nil {
 		logger.Fatalf("Failed to upload Release file: %v", err)
 	}
 
-	fmt.Printf("File uploaded successfully to %s\n", config.Bucket)
+	logger.Infof("File uploaded successfully to %s\n", config.Bucket)
 }

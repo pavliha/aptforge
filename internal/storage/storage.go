@@ -10,10 +10,15 @@ import (
 	"io"
 )
 
+import "errors"
+
+var ErrNotFound = errors.New("object not found")
+
 type Storage interface {
 	UploadFile(ctx context.Context, s3Key string, file filereader.File) error
 	UploadBuffer(ctx context.Context, s3Key string, buffer *bytes.Buffer) error
 	Download(ctx context.Context, s3Key string) (Object, error)
+	DownloadFile(ctx context.Context, s3Key string, dest *bytes.Buffer) error
 }
 
 type storageImpl struct {
@@ -95,8 +100,11 @@ func (s *storageImpl) UploadBuffer(ctx context.Context, s3Key string, buffer *by
 
 	s.logger.Debugf("Uploading buffer to S3 at path: %s/%s", s.bucket, s3Key)
 
-	// UploadFile the buffer
-	_, err := s.client.PutObject(ctx, s.bucket, s3Key, buffer, size, minio.PutObjectOptions{
+	// Create a new reader from the buffer's bytes
+	reader := bytes.NewReader(buffer.Bytes())
+
+	// Upload the buffer without consuming it
+	_, err := s.client.PutObject(ctx, s.bucket, s3Key, reader, size, minio.PutObjectOptions{
 		ContentType: "application/octet-stream",
 	})
 	if err != nil {
@@ -120,5 +128,47 @@ func (s *storageImpl) Download(ctx context.Context, s3Key string) (Object, error
 	}
 
 	return object, nil
+}
 
+func (s *storageImpl) DownloadFile(ctx context.Context, s3Key string, dest *bytes.Buffer) error {
+	s.logger.Debugf("Downloading file from S3 at path: %s/%s", s.bucket, s3Key)
+
+	// Get the object from S3
+	object, err := s.client.GetObject(ctx, s.bucket, s3Key, minio.GetObjectOptions{})
+	if err != nil {
+		s.logger.WithError(err).Error("Failed to get object from S3")
+		return fmt.Errorf("failed to get object from S3: %v", err)
+	}
+	defer func(object *minio.Object) {
+		err := object.Close()
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to close object")
+		}
+	}(object)
+
+	// Stat the object to check if it exists
+	_, err = object.Stat()
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			s.logger.Info("Object does not exist in S3")
+			return ErrNotFound
+		}
+		return fmt.Errorf("failed to stat object: %v", err)
+	}
+
+	// Copy the content to the destination buffer
+	_, err = io.Copy(dest, object)
+	if err != nil {
+		return fmt.Errorf("failed to read downloaded file: %v", err)
+	}
+
+	return nil
+}
+
+func IsNotFoundError(err error) bool {
+	if errors.Is(err, ErrNotFound) {
+		return true
+	}
+	errResp := minio.ToErrorResponse(err)
+	return errResp.StatusCode == 404 || errResp.Code == "NoSuchKey"
 }
