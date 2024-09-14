@@ -12,6 +12,17 @@
 
 ## Installation
 
+### Using `go install`
+
+Clone the repository and build the binary using Go:
+You can install AptForge directly using the go install command:
+
+```bash
+go install github.com/pavliha/aptforge@latest
+```
+This command will download and install the latest version of AptForge. Ensure that your $GOPATH/bin (or $HOME/go/bin if $GOPATH is not set) is added to your system's PATH environment variable so that you can run the aptforge command from anywhere.
+
+### Building from Source
 Clone the repository and build the binary using Go:
 
 ```bash
@@ -20,7 +31,9 @@ cd aptforge
 go build -o aptforge .
 ```
 
-Alternatively, you can download a pre-built binary from the releases' page.
+### Download Pre-built Binary
+Alternatively, you can download a pre-built binary from the [releases](https://github.com/pavliha/aptforge/releases) page.
+
 
 ## Usage
 The basic usage involves uploading a .deb package to an S3-compatible storage and updating the repository metadata.
@@ -65,7 +78,7 @@ aptforge --file ./my-package.deb --bucket my-repo-bucket \
 | `--archive`    | Archive type of the repository (e.g., `stable`, `testing`, `unstable`) | No       | `stable`         |
 | `--secure`     | Enable secure connections (true or false)                              | No       | `true`           |
 
-**Note:** If --access-key or --secret-key are not provided via flags, AptForge will look for the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+**Note:** If --access-key or --secret-key are not provided via flags, AptForge will look for the environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ### Valid Values
 - **Architecture** (--arch): amd64, arm64, i386
