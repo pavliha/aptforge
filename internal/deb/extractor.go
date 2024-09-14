@@ -1,11 +1,11 @@
 package deb
 
 import (
-	"aptforge/internal/filereader"
 	"archive/tar"
 	"compress/gzip"
 	"fmt"
 	"github.com/blakesmith/ar"
+	"github.com/pavliha/aptforge/internal/filereader"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"strings"

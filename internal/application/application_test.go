@@ -1,11 +1,11 @@
 package application
 
 import (
-	"aptforge/internal/deb"
-	"aptforge/internal/filereader"
-	"aptforge/internal/storage"
 	"bytes"
 	"context"
+	"github.com/pavliha/aptforge/internal/deb"
+	"github.com/pavliha/aptforge/internal/filereader"
+	"github.com/pavliha/aptforge/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

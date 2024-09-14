@@ -1,9 +1,9 @@
 package application
 
 import (
-	"aptforge/internal/deb"
 	"bytes"
 	"compress/gzip"
+	"github.com/pavliha/aptforge/internal/deb"
 )
 
 func compressGzip(data *bytes.Buffer) (*bytes.Buffer, error) {

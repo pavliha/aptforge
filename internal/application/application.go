@@ -1,13 +1,13 @@
 package application
 
 import (
-	"aptforge/internal/deb"
-	"aptforge/internal/filereader"
-	"aptforge/internal/storage"
 	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/pavliha/aptforge/internal/deb"
+	"github.com/pavliha/aptforge/internal/filereader"
+	"github.com/pavliha/aptforge/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"path/filepath"
 	"strings"

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"aptforge/cmd"
-	"aptforge/internal/application"
-	"aptforge/internal/storage"
 	"context"
+	"github.com/pavliha/aptforge/cmd"
+	"github.com/pavliha/aptforge/internal/application"
+	"github.com/pavliha/aptforge/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"os"
 )

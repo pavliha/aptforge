@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"aptforge/internal/filereader"
 	"bytes"
 	"context"
 	"fmt"
 	"github.com/minio/minio-go/v7"
+	"github.com/pavliha/aptforge/internal/filereader"
 	log "github.com/sirupsen/logrus"
 	"io"
 )
