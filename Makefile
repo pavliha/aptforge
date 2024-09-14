@@ -6,8 +6,8 @@ run:
 	@go run . \
 		--file test_data/test_linux_arm64.deb \
 		--bucket=apt \
-		--access-key=REDACTED \
-		--secret-key=REDACTED \
+		--access-key=$(MINIO_ACCESS_KEY_ID) \
+		--secret-key=$(MINIO_SECRET_ACCESS_KEY) \
 		--secure=false \
 		--endpoint=localhost:9000 \
 		--component=main \
@@ -19,12 +19,12 @@ run:
 
 run.s3:
 	@go run . \
-		--file test_data/test_linux_arm64.deb \
-		--bucket=apt \
-		--access-key=$AWS_ACCESS_KEY_ID \
-		--secret-key=$AWS_SECRET_ACCESS_KEY \
+		--file dist/aptforge_0.0.3_linux_arm64.deb \
+		--bucket=aircast-apt \
+		--access-key=$(AWS_ACCESS_KEY_ID) \
+		--secret-key=$(AWS_SECRET_ACCESS_KEY) \
 		--secure=false \
-		--endpoint=localhost:9000 \
+		--endpoint=s3.amazonaws.com \
 		--component=main \
 		--origin="Apt Repository" \
 		--label="Apt Repo" \
@@ -56,6 +56,8 @@ define act_command
 		--artifact-server-port $(ARTIFACT_SERVER_PORT) \
 		--artifact-server-path $(ARTIFACT_SERVER_PATH) \
 		-j $(1) -s GITHUB_TOKEN=$(GITHUB_TOKEN) \
+		-j $(1) -s AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) \
+		-j $(1) -s AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 		-W .github/workflows/$(2)
 endef
 
