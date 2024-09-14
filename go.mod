@@ -1,4 +1,4 @@
-module aptforge
+module github.com/pavliha/aptforge
 
 go 1.23.0
 

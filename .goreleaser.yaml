@@ -12,6 +12,12 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
 
 archives:
   - format: tar.gz
@@ -25,6 +31,30 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+
+nfpms:
+  - id: debian_pkg
+    package_name: "{{ .ProjectName }}"
+    formats:
+      - deb
+    homepage: "https://github.com/pavliha/aptforge"
+    maintainer: "Pavlo Kostiuk <kostyk.pavel.09@gmail.com>"
+    description: "AptForge automates apt repository management"
+    license: "MIT"
+    vendor: "pavliha"
+    section: default
+    priority: optional
+    dependencies:
+      - "bash"
+      - "ca-certificates"
+    recommends:
+      - "iproute2"
+    suggests:
+      - "traceroute"
+    contents:
+      # Binary file
+      - src: ./dist/{{ .ProjectName }}_linux_amd64/{{ .ProjectName }}
+        dst: /usr/local/bin/{{ .ProjectName }}
 
 changelog:
   sort: asc
@@ -49,3 +79,14 @@ release:
     
     Those were the changes on {{ .Tag }}!
   name_template: "{{.ProjectName}}-v{{.Version}}"
+
+checksum:
+  name_template: 'checksums.txt'
+
+publishers:
+  - name: aptforge-deploy
+    cmd: |
+      aptforge --file {{ abs .ArtifactPath }} --bucket aircast-apt --access-key {{ .Env.AWS_ACCESS_KEY_ID }} --secret-key ${{ .Env.AWS_SECRET_ACCESS_KEY }} --endpoint aircast-apt.s3.amazonaws.com
+    checksum: true
+    ids:
+      - debian_pkg
