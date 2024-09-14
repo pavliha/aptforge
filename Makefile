@@ -18,3 +18,29 @@ run:
 test:
 	@echo "Testing..."
 	grc go test ./... -v
+
+
+
+# Use := instead of = for variable assignment
+ACTIONS_RUNTIME_URL := http://host.docker.internal:4322/
+ARTIFACT_SERVER_ADDR := [::0]
+ARTIFACT_SERVER_PORT := 4322
+ARTIFACT_SERVER_PATH := out
+GITHUB_TOKEN := $(GITHUB_TOKEN)
+
+# Use .PHONY to declare targets that are not files
+.PHONY: ci.piagent.build.stage ci.piagent.build.dev ci.piagent.release.dev ci.piagent.release.stage ci.piagent.release.prod
+
+
+# Extract shared command to a single one
+define act_command
+	ACTIONS_RUNTIME_URL=$(ACTIONS_RUNTIME_URL) act \
+		--artifact-server-addr "$(ARTIFACT_SERVER_ADDR)" \
+		--artifact-server-port $(ARTIFACT_SERVER_PORT) \
+		--artifact-server-path $(ARTIFACT_SERVER_PATH) \
+		-j $(1) -s GITHUB_TOKEN=$(GITHUB_TOKEN) \
+		-W .github/workflows/$(2)
+endef
+
+ci.release: ; \
+	$(call act_command,release,release.yml)
