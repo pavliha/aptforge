@@ -57,10 +57,15 @@ func New(logger *log.Entry, config *Config) Application {
 }
 
 func (a *applicationImpl) LoadDebFile(filePath string) (filereader.File, error) {
+	if filepath.Ext(filePath) != ".deb" {
+		return nil, fmt.Errorf("file is not a .deb file: %s", filePath)
+	}
+
 	file, err := a.fileReader.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
+
 	return file, nil
 }
 

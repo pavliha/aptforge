@@ -64,19 +64,19 @@ aptforge --file ./my-package.deb --bucket my-repo-bucket \
 ```
 
 ## Flags
-| Flag           | Description                                                            | Required | Default          |
-|----------------|------------------------------------------------------------------------|----------|------------------|
-| `--file`       | Path to the `.deb` file to upload                                      | Yes      |                  |
-| `--bucket`     | Name of the S3 bucket                                                  | Yes      |                  |
-| `--access-key` | Access Key for the S3 bucket                                           | Yes      |                  |
-| `--secret-key` | Secret Key for the S3 bucket                                           | Yes      |                  |
-| `--endpoint`   | S3-compatible endpoint (e.g., `fra1.digitaloceanspaces.com`)           | Yes      |                  |
-| `--component`  | Repository component (e.g., `main`, `contrib`, `non-free`)             | No       | `main`           |
-| `--origin`     | Origin of the repository                                               | No       | `Apt Repository` |
-| `--label`      | Label for the repository                                               | No       | `Apt Repo`       |
-| `--arch`       | Target architecture for the repository (e.g., `amd64`, `arm64`)        | No       | `amd64`          |
-| `--archive`    | Archive type of the repository (e.g., `stable`, `testing`, `unstable`) | No       | `stable`         |
-| `--secure`     | Enable secure connections (true or false)                              | No       | `true`           |
+| Flag           | Description                                                            | Required | Default            |
+|----------------|------------------------------------------------------------------------|----------|--------------------|
+| `--file`       | Path to the `.deb` file to upload                                      | Yes      |                    |
+| `--bucket`     | Name of the S3 bucket                                                  | Yes      |                    |
+| `--access-key` | Access Key for the S3 bucket                                           | Yes      |                    |
+| `--secret-key` | Secret Key for the S3 bucket                                           | Yes      |                    |
+| `--endpoint`   | S3-compatible endpoint (e.g., `fra1.digitaloceanspaces.com`)           | No       | `s3.amazonaws.com` |
+| `--component`  | Repository component (e.g., `main`, `contrib`, `non-free`)             | No       | `main`             |
+| `--origin`     | Origin of the repository                                               | No       | `Apt Repository`   |
+| `--label`      | Label for the repository                                               | No       | `Apt Repo`         |
+| `--arch`       | Target architecture for the repository (e.g., `amd64`, `arm64`)        | No       | `amd64`            |
+| `--archive`    | Archive type of the repository (e.g., `stable`, `testing`, `unstable`) | No       | `stable`           |
+| `--secure`     | Enable secure connections (true or false)                              | No       | `true`             |
 
 **Note:** If --access-key or --secret-key are not provided via flags, AptForge will look for the environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 

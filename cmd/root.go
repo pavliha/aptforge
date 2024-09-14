@@ -50,26 +50,6 @@ var rootCmd = &cobra.Command{
 	Short: Description,
 	Long:  Description,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Validate required inputs
-		if config.FilePath == "" || config.Bucket == "" || config.AccessKey == "" || config.SecretKey == "" || config.Endpoint == "" {
-			log.Fatal("Missing required arguments: file, bucket, access-key, secret-key, endpoint")
-		}
-
-		// Validate Architecture
-		if _, valid := validArchitectures[config.Architecture]; !valid {
-			log.Fatal("Invalid architecture. Allowed values are: amd64, arm64, i386")
-		}
-
-		// Validate Archive
-		if _, valid := validArchives[config.Archive]; !valid {
-			log.Fatal("Invalid archive. Allowed values are: stable, testing, unstable")
-		}
-
-		// Validate Component
-		if _, valid := validComponents[config.Component]; !valid {
-			log.Fatal("Invalid component. Allowed values are: main, contrib, non-free")
-		}
-
 		// Your main application logic goes here
 		log.Infof("Configuration: %v", config)
 	},
@@ -112,7 +92,7 @@ func init() {
 	rootCmd.Flags().StringVar(&config.Bucket, "bucket", "", "Name of the S3 bucket")
 	rootCmd.Flags().StringVar(&config.AccessKey, "access-key", "", "Access Key")
 	rootCmd.Flags().StringVar(&config.SecretKey, "secret-key", "", "Secret Access Key")
-	rootCmd.Flags().StringVar(&config.Endpoint, "endpoint", "", "S3-compatible endpoint (e.g., fra1.digitaloceanspaces.com)")
+	rootCmd.Flags().StringVar(&config.Endpoint, "endpoint", "s3.amazonaws.com", "S3-compatible endpoint (e.g., fra1.digitaloceanspaces.com)")
 
 	// Release file metadata flags
 	rootCmd.Flags().StringVar(&config.Component, "component", "main", "Component of the APT repository (e.g., main, contrib, non-free)")
@@ -127,5 +107,4 @@ func init() {
 	_ = rootCmd.MarkFlagRequired("bucket")
 	_ = rootCmd.MarkFlagRequired("access-key")
 	_ = rootCmd.MarkFlagRequired("secret-key")
-	_ = rootCmd.MarkFlagRequired("endpoint")
 }

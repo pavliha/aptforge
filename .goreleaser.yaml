@@ -82,7 +82,7 @@ checksum:
 publishers:
   - name: aptforge-deploy
     cmd: |
-      aptforge --file {{ abs .ArtifactPath }} --bucket aircast-apt --access-key {{ .Env.AWS_ACCESS_KEY_ID }} --secret-key ${{ .Env.AWS_SECRET_ACCESS_KEY }} --endpoint s3.amazonaws.com
-    checksum: true
+      aptforge --file {{ abs .ArtifactPath }} --bucket aircast-apt --access-key {{ .Env.AWS_ACCESS_KEY_ID }} --secret-key {{ .Env.AWS_SECRET_ACCESS_KEY }} --endpoint s3.amazonaws.com
+    checksum: false
     ids:
       - debian_pkg
