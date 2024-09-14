@@ -52,6 +52,7 @@ GITHUB_TOKEN := $(GITHUB_TOKEN)
 # Extract shared command to a single one
 define act_command
 	ACTIONS_RUNTIME_URL=$(ACTIONS_RUNTIME_URL) act \
+		--container-architecture linux/amd64
 		--artifact-server-addr "$(ARTIFACT_SERVER_ADDR)" \
 		--artifact-server-port $(ARTIFACT_SERVER_PORT) \
 		--artifact-server-path $(ARTIFACT_SERVER_PATH) \
