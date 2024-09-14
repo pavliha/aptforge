@@ -33,5 +33,4 @@ jobs:
           version: '~> v2'
           args: release --clean --skip=validate
         env:
-          API_HOST: ${{ environments.API_HOST }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
