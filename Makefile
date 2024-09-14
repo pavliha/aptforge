@@ -1,3 +1,4 @@
+-include .env
 
 .PHONY: run
 
@@ -14,6 +15,22 @@ run:
 		--label="Apt Repo" \
 		--arch=arm64 \
 		--archive=stable
+
+
+run.s3:
+	@go run . \
+		--file test_data/test_linux_arm64.deb \
+		--bucket=apt \
+		--access-key=$AWS_ACCESS_KEY_ID \
+		--secret-key=$AWS_SECRET_ACCESS_KEY \
+		--secure=false \
+		--endpoint=localhost:9000 \
+		--component=main \
+		--origin="Apt Repository" \
+		--label="Apt Repo" \
+		--arch=arm64 \
+		--archive=stable
+
 
 test:
 	@echo "Testing..."

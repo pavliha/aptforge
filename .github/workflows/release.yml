@@ -37,6 +37,9 @@ jobs:
         with:
           go-version: '1.22.x'
 
+      - name: Install AptForge
+        run: go install github.com/pavliha/aptforge@v0.0.3
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

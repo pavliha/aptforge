@@ -45,16 +45,12 @@ nfpms:
     section: default
     priority: optional
     dependencies:
-      - "bash"
-      - "ca-certificates"
+      - bash
+      - ca-certificates
     recommends:
-      - "iproute2"
+      - iproute2
     suggests:
-      - "traceroute"
-    contents:
-      # Binary file
-      - src: ./dist/{{ .ProjectName }}_linux_amd64/{{ .ProjectName }}
-        dst: /usr/local/bin/{{ .ProjectName }}
+      - traceroute
 
 changelog:
   sort: asc

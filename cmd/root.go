@@ -71,7 +71,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Your main application logic goes here
-		fmt.Println("Configuration:", config)
+		log.Infof("Configuration: %v", config)
 	},
 }
 
