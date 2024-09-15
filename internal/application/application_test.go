@@ -165,7 +165,7 @@ func TestUploadDebFile(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-// Updated Test DownloadPackagesFromStorage
+// Updated Test downloadPackagesFromStorage
 func TestDownloadPackagesFromStorage(t *testing.T) {
 	mockStorage := new(MockStorage)
 	existingPackagesContent := "existing packages content"
@@ -179,7 +179,7 @@ func TestDownloadPackagesFromStorage(t *testing.T) {
 		storage: mockStorage,
 	}
 
-	buffer, err := app.DownloadPackagesFromStorage(context.Background())
+	buffer, err := app.downloadPackagesFromStorage(context.Background(), "packages-path")
 	assert.NoError(t, err)
 	assert.Equal(t, existingPackagesContent, buffer.String())
 	mockStorage.AssertExpectations(t)
@@ -209,7 +209,7 @@ func TestUpdatePackagesFile(t *testing.T) {
 		logger:  log.NewEntry(log.New()),
 	}
 
-	packagesBuffer, packagesGzBuffer, err := app.UpdatePackagesFile(context.Background(), mockMetadata)
+	packagesBuffer, packagesGzBuffer, err := app.UpdatePackagesFile(context.Background(), "packages-path", mockMetadata)
 	assert.NoError(t, err)
 	assert.Contains(t, packagesBuffer.String(), "testpkg")
 	assert.NotNil(t, packagesGzBuffer)
@@ -233,12 +233,9 @@ func TestUploadReleaseFile(t *testing.T) {
 			Label:        "Test Repo",
 			Architecture: "amd64",
 		},
-		repoPath:         "repo-path",
-		packagesFilePath: "packages-path",
-		releaseFilePath:  "release-file-path",
 	}
 
-	err := app.UploadReleaseFile(context.Background(), packagesBuffer, packagesGzBuffer)
+	err := app.UploadPackageReleaseFile(context.Background(), "release-file-path", packagesBuffer, packagesGzBuffer)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }

@@ -27,32 +27,26 @@ type Application interface {
 	CloseFile(file filereader.File)
 	ExtractDebMetadata(file filereader.File) (*deb.PackageMetadata, error)
 	UploadDebFile(ctx context.Context, metadata *deb.PackageMetadata, file filereader.File) error
-	UpdatePackagesFile(ctx context.Context, metadata *deb.PackageMetadata) (*bytes.Buffer, *bytes.Buffer, error)
-	UploadReleaseFile(ctx context.Context, packagesBuffer *bytes.Buffer, packagesGzBuffer *bytes.Buffer) error
+	UpdatePackagesFile(ctx context.Context, packagesPath string, metadata *deb.PackageMetadata) (*bytes.Buffer, *bytes.Buffer, error)
+	UploadPackageReleaseFile(ctx context.Context, releasePath string, packagesBuffer, packagesGzBuffer *bytes.Buffer) error
+	UploadSuiteReleaseFile(ctx context.Context, suiteReleasePath string, architectures, components []string) error
 }
 
 type applicationImpl struct {
-	logger           *log.Entry
-	storage          storage.Storage
-	fileReader       filereader.Reader
-	extractor        deb.Extractor
-	config           *Config
-	repoPath         string
-	packagesFilePath string
-	releaseFilePath  string
+	logger     *log.Entry
+	storage    storage.Storage
+	fileReader filereader.Reader
+	extractor  deb.Extractor
+	config     *Config
 }
 
 func New(logger *log.Entry, config *Config) Application {
-	repoPath := deb.ConstructRepoPath(config.Archive, config.Component, config.Architecture)
 	return &applicationImpl{
-		logger:           logger,
-		config:           config,
-		storage:          storage.Initialize(logger, config.Storage),
-		fileReader:       filereader.New(logger.WithField("pkg", "file")),
-		extractor:        deb.New(logger.WithField("pkg", "deb")),
-		repoPath:         repoPath,
-		packagesFilePath: filepath.Join(repoPath, "Packages"),
-		releaseFilePath:  filepath.Join(repoPath, "Release"),
+		logger:     logger,
+		config:     config,
+		storage:    storage.Initialize(logger, config.Storage),
+		fileReader: filereader.New(logger.WithField("pkg", "file")),
+		extractor:  deb.New(logger.WithField("pkg", "deb")),
 	}
 }
 
@@ -94,26 +88,9 @@ func (a *applicationImpl) UploadDebFile(ctx context.Context, metadata *deb.Packa
 	return nil
 }
 
-func (a *applicationImpl) DownloadPackagesFromStorage(ctx context.Context) (*bytes.Buffer, error) {
-	var packagesBuffer bytes.Buffer
-
-	// Download the existing Packages file
-	err := a.storage.DownloadFile(ctx, a.packagesFilePath, &packagesBuffer)
-	if err != nil {
-		// If the error indicates the file does not exist, start with an empty buffer
-		if storage.IsNotFoundError(err) {
-			a.logger.Info("No existing Packages file found; starting fresh")
-			return &packagesBuffer, nil
-		}
-		return nil, fmt.Errorf("failed to download Packages file: %w", err)
-	}
-
-	return &packagesBuffer, nil
-}
-
-func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, metadata *deb.PackageMetadata) (*bytes.Buffer, *bytes.Buffer, error) {
+func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, packagesPath string, metadata *deb.PackageMetadata) (*bytes.Buffer, *bytes.Buffer, error) {
 	// Download an existing Packages file
-	existingPackagesBuffer, err := a.DownloadPackagesFromStorage(ctx)
+	existingPackagesBuffer, err := a.downloadPackagesFromStorage(ctx, packagesPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to download Packages file: %v", err)
 	}
@@ -137,7 +114,7 @@ func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, metadata *deb.
 	}
 
 	// Proceed to upload and compress the Packages file
-	err = a.storage.UploadBuffer(ctx, a.packagesFilePath, existingPackagesBuffer)
+	err = a.storage.UploadBuffer(ctx, packagesPath, existingPackagesBuffer)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to upload Packages file: %w", err)
 	}
@@ -149,7 +126,7 @@ func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, metadata *deb.
 	}
 
 	// Upload the Packages.gz file
-	packagesGzPath := a.packagesFilePath + ".gz"
+	packagesGzPath := packagesPath + ".gz"
 	err = a.storage.UploadBuffer(ctx, packagesGzPath, packagesGzBuffer)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to upload Packages.gz file: %v", err)
@@ -158,14 +135,9 @@ func (a *applicationImpl) UpdatePackagesFile(ctx context.Context, metadata *deb.
 	return existingPackagesBuffer, packagesGzBuffer, nil
 }
 
-func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer, packagesGzBuffer *bytes.Buffer) error {
+func (a *applicationImpl) UploadPackageReleaseFile(ctx context.Context, releasePath string, packagesBuffer, packagesGzBuffer *bytes.Buffer) error {
 	// Initialize the SHA256 slice
 	var checksums []deb.ChecksumInfo
-
-	// Ensure packagesBuffer is not empty
-	if packagesBuffer.Len() == 0 {
-		return fmt.Errorf("packages buffer is empty; cannot generate Release file")
-	}
 
 	// Compute checksum and size for Packages
 	packagesHash := sha256.New()
@@ -175,8 +147,6 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 	}
 	packagesSha256Sum := fmt.Sprintf("%x", packagesHash.Sum(nil))
 	packagesSize := int64(packagesBuffer.Len())
-
-	a.logger.Debugf("Packages buffer length before checksum: %d", packagesBuffer.Len())
 
 	checksums = append(checksums, deb.ChecksumInfo{
 		Checksum: packagesSha256Sum,
@@ -193,8 +163,6 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 	packagesGzSha256Sum := fmt.Sprintf("%x", packagesGzHash.Sum(nil))
 	packagesGzSize := int64(packagesGzBuffer.Len())
 
-	a.logger.Debugf("Packages.gz buffer length before checksum: %d", packagesGzBuffer.Len())
-
 	checksums = append(checksums, deb.ChecksumInfo{
 		Checksum: packagesGzSha256Sum,
 		Size:     packagesGzSize,
@@ -202,7 +170,7 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 	})
 
 	// Construct the Release file content
-	releaseContent := deb.CreateReleaseFileContents(deb.ReleaseFileContent{
+	releaseContent := deb.CreatePackageReleaseFileContents(deb.ReleaseFileContent{
 		Origin:       a.config.Origin,
 		Label:        a.config.Label,
 		Archive:      a.config.Archive,
@@ -211,14 +179,47 @@ func (a *applicationImpl) UploadReleaseFile(ctx context.Context, packagesBuffer,
 		SHA256:       checksums,
 	})
 
-	// Create a buffer for the Release file
-	releaseBuffer := bytes.NewBufferString(releaseContent)
-
 	// Upload the Release file
-	err = a.storage.UploadBuffer(ctx, a.releaseFilePath, releaseBuffer)
+	err = a.storage.UploadBuffer(ctx, releasePath, bytes.NewBufferString(releaseContent))
 	if err != nil {
 		return fmt.Errorf("failed to upload Release file: %v", err)
 	}
 
 	return nil
+}
+
+func (a *applicationImpl) UploadSuiteReleaseFile(ctx context.Context, suiteReleasePath string, architectures, components []string) error {
+	// Construct the Release file content for the entire suite
+	releaseContent := deb.CreateSuiteReleaseFileContents(deb.ReleaseFileContent{
+		Origin:       a.config.Origin,
+		Label:        a.config.Label,
+		Archive:      a.config.Archive,
+		Architecture: strings.Join(architectures, " "),
+		Component:    strings.Join(components, " "),
+	})
+
+	// Upload the suite-level Release file
+	err := a.storage.UploadBuffer(ctx, suiteReleasePath, bytes.NewBufferString(releaseContent))
+	if err != nil {
+		return fmt.Errorf("failed to upload suite-level Release file: %v", err)
+	}
+
+	return nil
+}
+
+func (a *applicationImpl) downloadPackagesFromStorage(ctx context.Context, packagesPath string) (*bytes.Buffer, error) {
+	var packagesBuffer bytes.Buffer
+
+	// Download the existing Packages file
+	err := a.storage.DownloadFile(ctx, packagesPath, &packagesBuffer)
+	if err != nil {
+		// If the error indicates the file does not exist, start with an empty buffer
+		if storage.IsNotFoundError(err) {
+			a.logger.Info("No existing Packages file found; starting fresh")
+			return &packagesBuffer, nil
+		}
+		return nil, fmt.Errorf("failed to download Packages file: %w", err)
+	}
+
+	return &packagesBuffer, nil
 }

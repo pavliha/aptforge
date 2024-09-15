@@ -4,9 +4,11 @@ import (
 	"context"
 	"github.com/pavliha/aptforge/cmd"
 	"github.com/pavliha/aptforge/internal/application"
+	"github.com/pavliha/aptforge/internal/deb"
 	"github.com/pavliha/aptforge/internal/storage"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -44,6 +46,7 @@ func main() {
 		Archive:      config.Archive,
 	})
 
+	// Load and extract the .deb metadata
 	file, err := app.LoadDebFile(config.FilePath)
 	if err != nil {
 		logger.Fatalf("Failed to load .deb file: %v", err)
@@ -62,17 +65,25 @@ func main() {
 	}
 
 	logger.Infof("Updating repository metadata...")
+	repoPath := deb.ConstructRepoPath(config.Archive, config.Component, config.Architecture)
+	packagesFilePath := filepath.Join(repoPath, "Packages")
 
-	// Update the Packages file and get both Packages and Packages.gz buffers
-	packagesBuffer, packagesGzBuffer, err := app.UpdatePackagesFile(ctx, packageMetadata)
+	// Update the Packages file and upload both architecture-specific and high-level Release files
+	packagesBuffer, packagesGzBuffer, err := app.UpdatePackagesFile(ctx, packagesFilePath, packageMetadata)
 	if err != nil {
 		logger.Fatalf("Failed to update Packages file: %v", err)
 	}
 
-	// Generate and upload the Release file
-	err = app.UploadReleaseFile(ctx, packagesBuffer, packagesGzBuffer)
+	// Upload an architecture-specific Release file
+	err = app.UploadPackageReleaseFile(ctx, filepath.Join(repoPath, "Release"), packagesBuffer, packagesGzBuffer)
 	if err != nil {
-		logger.Fatalf("Failed to upload Release file: %v", err)
+		logger.Fatalf("Failed to upload architecture-specific Release file: %v", err)
+	}
+
+	// Upload suite-level Release file
+	err = app.UploadSuiteReleaseFile(ctx, filepath.Join("dists", config.Archive, "Release"), []string{"amd64", "arm64"}, []string{"main", "contrib"})
+	if err != nil {
+		logger.Fatalf("Failed to upload suite-level Release file: %v", err)
 	}
 
 	logger.Infof("File uploaded successfully to %s\n", config.Bucket)

@@ -22,8 +22,8 @@ type ReleaseFileContent struct {
 	SHA256       []ChecksumInfo
 }
 
-// CreateReleaseFileContents generates the content of a Release file
-func CreateReleaseFileContents(content ReleaseFileContent) string {
+// CreatePackageReleaseFileContents generates the content of a Release file
+func CreatePackageReleaseFileContents(content ReleaseFileContent) string {
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("Origin: %s\n", content.Origin))
@@ -33,6 +33,27 @@ func CreateReleaseFileContents(content ReleaseFileContent) string {
 	sb.WriteString(fmt.Sprintf("Architecture: %s\n", content.Architecture))
 	sb.WriteString(fmt.Sprintf("Date: %s\n", generateCurrentDate())) // You can format the date as needed
 	sb.WriteString(fmt.Sprintf("MD5Sum:\n"))
+	sb.WriteString(fmt.Sprintf("SHA256:\n"))
+
+	// Add SHA256 checksums
+	for _, checksum := range content.SHA256 {
+		sb.WriteString(fmt.Sprintf(" %s %d %s\n", checksum.Checksum, checksum.Size, checksum.Filename))
+	}
+
+	return sb.String()
+}
+
+// CreateSuiteReleaseFileContents generates the content of a Release file
+func CreateSuiteReleaseFileContents(content ReleaseFileContent) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("Origin: %s\n", content.Origin))
+	sb.WriteString(fmt.Sprintf("Label: %s\n", content.Label))
+	sb.WriteString(fmt.Sprintf("Suite: %s\n", content.Archive))
+	sb.WriteString(fmt.Sprintf("Codename: %s\n", content.Archive)) // Codename matches Suite
+	sb.WriteString(fmt.Sprintf("Architectures: %s\n", content.Architecture))
+	sb.WriteString(fmt.Sprintf("Components: %s\n", content.Component))
+	sb.WriteString(fmt.Sprintf("Date: %s\n", generateCurrentDate())) // Custom date format
 	sb.WriteString(fmt.Sprintf("SHA256:\n"))
 
 	// Add SHA256 checksums
